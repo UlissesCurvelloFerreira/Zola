@@ -1,0 +1,71 @@
+PARA FIXAR AS THREADS POR CORE (Afinidade de threads)
+------------------------------
+
+Nesse trabalho, como voce vai tentar reutilzar valores
+do cache, seria ruim deixar que o SO migre suas threads dos nucleos,
+enquanto as threads estão executando.
+
+Abaixo temos algumas ideias de como fixar threads por nucleo.
+Veja que abaixo estah fixando assim:
+Suponha que a CPU tenha 4 cores e hyperthread ligada (2 por core)
+entao temos 8 threads, e o mapeamento (fixação de threads) feito abaixo
+fica assim:
+
+   core     
+   fisico   threads
+   0          0 e 4  
+   1          1 e 5  
+   2          2 e 6
+   3          3 e 7
+
+Se voce achar que deve fixar as threads de outra maneira,
+terá de mudar o codigo abaixo.
+
+OBS1: Note que, se tiver rodando no cluster Xeon, ele não tem hyperthread
+e a topologia é diferente. Então voce deve ver se deve mudar
+o mapeamento de threads por nucleo quando (se) for rodar no
+cluster Xeon;
+
+OBS2: voce pode trabalhar com menor numero de threads do que
+      total_logical_cores
+      total_logical_cores é o maximo numero de threads que nao 
+         causarão trocas de contexto entre suas threads
+
+
+//------------- PARA FIXAR AS THREADS POR CORE ----------------
+
+   #include <sched.h>      // tem de incluir isso!
+
+
+    pthread_t threads[NUM_THREADS];     // threads
+    pthread_attr_t attr[NUM_THREADS];   // atributos das threads
+    
+//  suponha um vetor de estuturas qualquer (ex. chamada args[])
+//  .. que voce usa para passar parametros para suas threads   
+    
+//    suponha a variavel total_logical_cores que indica quantos 
+//    cores logicos existem na sua CPU, obtem esse valor do SISTEMA
+    int total_logical_cores = sysconf(_SC_NPROCESSORS_ONLN);    
+
+    // este loop fixa as threads por core ANTES de cria-las
+    for (int i = 0; i < NUM_THREADS; i++) {
+    
+        args[i].thread_id = i;     // numero logico da thread
+        args[i].core_id = i % total_logical_cores;    // core onde a thread
+                                                      // ... será fixada
+
+        pthread_attr_init(&attr[i]);   // inicializa as
+                                       //  ... estruturas de atributos de threads
+
+        // prepara mascaras de afinidade de threads
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(args[i].core_id, &cpuset); 
+
+        // Aplica afinidade rígida na criação
+        pthread_attr_setaffinity_np(&attr[i], sizeof(cpu_set_t), &cpuset);
+
+        // cria cada thread
+        pthread_create(&threads[i], &attr[i], funcao_da_thread, &args[i]);
+    }
+

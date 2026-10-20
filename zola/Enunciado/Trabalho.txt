@@ -1,0 +1,466 @@
+ci1316  - PROGRAMAÇÃO PARALELA - 
+2o semestre de 2026    
+por W.Zola/UFPR
+
+Trab 1: SomaDePrefixos-com-PThreads   (versão 1.7)  
+----------------------------------
+Essa especificação deve ser (possivelmente) complementada com detalhes 
+de experiencias e resultados esperados...
+
+Ideia do algoritmo apresentada em: 
+Data do enunciado preliminar FOI: 30/set (ideias)
+Data da entrega: 21/outubr/2026          
+---------------             
+                      
+Histórico:
+- v1.0 a versão inicial
+- v1.3 foram as IDEIAS (descritas em outro arquivo).
+- v1.4 primeira especificaçao formal
+   * indicado os parametros de entrada da funçao e program)
+   * incluido na especificação a ideia de reutilizar o cache
+     com cada thread calculando em chunks 
+- v1.5 incluido -v na linha de comando
+- v1.6a incluido infos sobre experimentos exigidos
+- v1.6b incluido chamada de funçao exemplo para obter
+        infos dos caches da maquina (funcao dada pelo prof.
+        eh apenas uma CONVENIENCIA para o utilizador)
+- v1.7  APENAS voltei o numero de elementos das experiencias
+        para 8000000, porque com mais que isso gasta mais que os 5min da fila do slurm
+        com isso:
+        experiencia A) vai rodar 6 vezes, para cada numero de threads e tirar a media
+        experiencia B) vai rodar 5 vezes, para cada numero de threads e tirar a media        
+        PORQUE? 6 seria melhor, MAS B) demora muito, entao mudei para 5 para facilitar
+        FYI, no cluster w:
+           o script slurm do prof rodou em 4:21 minutos na experiencia (A)
+           o script slurm do prof rodou em 4:18 minutos na experiencia (B)
+        OBS> o prof vai colocar na UFPR Virtual os scripts slurm dele
+          para facilitar, sao eles:
+              roda-exp-A-chunk-196608-slurm.sh 
+              e
+              roda-exp-B-chunk-0-slurm.sh      
+             
+  OBS1: NOTE que conforme descrito no arquivo .txt descrevendo 
+             a ideia do algoritmo, o algoritmo requer PELO MENOS
+             a chamada de barreira UMA vez (alem da barreira do POOL
+             de threads.
+  OBS2: Todos os resultados medidos pelos alunos deve ser
+          obtidos nos computadores do LAB 4 (do DINF)
+          (a nao ser que o cluster Xeon da disciplina seja liberado em tempo!)
+          
+  OBS3: A implementação DEVE SER com pool de threads. 
+        Isso EXCLUI usar "joins", por definição de pool de threads.
+
+        - Então, nossa implementação com thread pool usa uma barreira 
+          (foi assim na implementação dada para a redução paralela com 
+            pool de threads)
+
+        - Portanto quando foi dito na especificação 
+          que o algoritmo de soma de prefixos 
+          usaria PELO MENOS uma barreira, 
+          significa UMA A MAIS para esse algoritmo
+           (pois, a barreira do pool de threads eh do pool, 
+            portanto não não eh do algoritmo de soma de prefixos)
+
+       - Então teria duas no mínimo, Uma para o pool, 
+             e Outra para a soma de prefixos
+
+       - Ocorre que, deve ser necessário PELO MENOS mais
+         uma barreira (a 3a barreira?) pois
+         o seu algoritmo necessita garantir que a thread 0 (chamadora) 
+         não retorne sem que todas as outras tenham completado a fase 2 
+         da sua soma de prefixos. A não ser que voce tenha outro método para
+         garantir isso!
+
+         Portanto, ficou assim *flexibilizado* para uso de 3 barreiras :
+
+           - Barreira 1 para o pool (OBRIGATORIA)
+           - Barreira 2 para o algoritmo de soma de prefixos 
+           (parece obrigatoria tambem, a não ser 
+           que você use algum método com atômicos para eliminar essa barreira)
+           - Mais uma barreira (a barreira 3) 
+             Para garantir que todas terminaram seus cálculos
+
+           OBS4: Eu disse também que SE alguem conseguir fazer com somente 2
+            barreiras por algum método
+           *mais Eficiente* (exemplo, atomicos ou coisa assim) ganharia 
+           pontos MAS seria extra! Qualquer que seja seu método,
+           ele deverá ser bem detalhado no relatório.
+
+           OBS5: Mas de qq forma, 
+           a implementação tem de ser com pool de threads 
+           e manter a barreira 1 para o pool de threads, 
+           nesse caso nao usar joins pois isso nao seria pool de threads
+           
+           PERGUNTA: posso fazer com mais de 3 barreiras ?
+           R: sim, DESDE QUE seja mais rapido o seu metodo com mais barreiras
+              (barreiras sao relativamente rápidas em pthreads 
+               MAS mais barreiras ==> mais lento)
+              Nesse caso, voce deve explicar (ou comprovar) no relatorio
+              porque usando mais de 3 barreiras 
+              seria mais rapido na sua implementaçao. 
+              
+          PERGUNTA 2: 
+          posso dar um nome diferente para cada barreira ou uso sempre o mesmo ?
+          R: pode usar nomes diferentes, e seria mais legível, 
+          explicando no relatorio seus significados e 
+          o porque de ter de usar aquela barreira no codigo.
+              
+
+------- PASSOS PARA FAZER ESSE TRABALHO: -----------
+- A MÁQUINA DEVE SER ALGUM DOS COMPUPTADORES DO LAB 4
+     (pois tem NO MÍNIMO 4 CORES/8 hyperthreads) E 8GB DE MEMÓRIA
+     (voce DEVE ter um mínimo de processos rodando 
+     para não atrapalhar suas medidas)
+     assim: 
+         
+         
+- voce deve entregar um script que roda ser experimentos e
+  gera examente os mesmos resultados que voce obteve e colocou na planilha
+  assim, o prof poderá verificar sua implementação
+
+      #no cluster w, rode com *8000000 elementos* (8 MILHOES)    <<<<== versao 1.7
+      (vamos MANTER em 8000000, porque com 16 milhoes as experiencias demoram muito, e cancela no limite da fila SLURM)
+
+      SE rodar para 8 threads
+      ./prefixSumPth-longlong 8000000 <chunkSize> 8
+      
+     A linha de comando do programa 
+     (chamado pelos seus scripts slurm 
+     roda-exp-A-chunk-196608-slurm.sh e
+     roda-exp-B-chunk-0-slurm.sh)
+      estah indicada abaixo nessa especificação
+      
+     OBS> o prof vai colocar na UFPR Virtual os scripts slurm dele
+          para facilitar 
+       
+     esse script vai produzir a saida das experiencias para
+     1 a 8 threads 
+        (na expA, roda 6 vezes cada numero de threads)    <<==== versao 1.7
+        (na expB, roda 5 vezes cada numero de threads)    <<==== versao 1.7
+     Voce deve copiar (contol-C) a saida do script 
+       na página dadosV1 na primeira celula dessa pagina
+       fazer (control-V nessa célula)
+       MARCANDO PARA A PLANILHA USAR COMO SEPARADORES OS CARACTERES [] espaço, etc, o que for necessario
+
+     Ao fazer isso as tabelas estarão ok, e as cẽlulas também
+     certifique-se que está tudo certo
+     
+     Aí basta voce ajustar as escalas dos gráficos 
+     - clicando com mouse os eixos y (esquerdo ou direito) para
+     e adequar as escalas, o prof. vai mostrar na sala
+     (ou já mostrou!)
+
+Objetivos: 
+// Obter uma implementação paralela MAIS eficiente 
+//   com POOL de threads
+//   para esse algoritmo "Soma de Prefixos" V1
+//   em CPUs multicore usando PThreads
+//   sua implementação DEVE tentar aproveitar os caches
+//   para acelerar a soma de prefixos
+
+// será feita a soma de prefixos de 
+//  um vetor de long long (ou seja, INTEIROS DE 64BITS) 
+//  usando nThreads (definida via linha de comando)
+
+// Para ESSE lab faremos:
+//   a soma de prefixos será com a operação SOMA  (+)
+
+// Funcionamento:
+//  O programa deve funcionar para nTotalElements com nThreads 
+//   Com: nTotalElements e nThreads obtidos da linha de comando
+//   (assim como a versão feita em aula para a redução)
+//  Utilização do programa:
+//  usage: ./prefixSumPth <nTotalElements> <nThreads> <chunkSize> [-v]
+
+    <chunkSize> 
+    indica o deslocamento (NÚMERO DE ELEMENTOS NO CHUNK, i.e. stride)
+    entre threads, assim voce vai especificar esse valor na
+    linha de comandos, de modo que seu programa vai "tentar"
+    reutilizar o cache para cáculos a cada <chunkSize> elementos.
+    Voce deve experimentar e verificar, para a maquina de experimentos,
+    qual eh o melhor valor para <chunkSize>.
+    
+    SE <chunkSize> == 0, isso será uma conveniencia para o utilizador
+    do programa/função de Soma de Prefixos.
+    Caso <<chunkSize> == 0, o programa/função deve calcular o <chunkSize>
+    para que cada thread tenha APENAS 1 chunk, ou seja,
+    nesse caso não estará tentando reutilizar o cache.
+    Cada thread deve trabalhar com (aproximadamente) a mesma quantidade
+    de elementos, a não ser a última thread, que pode ter ficado com menos
+    elementos (se o total não for múltiplo do número de threads)
+    
+    -v  é um parâmetro OPCIONAL na linha de comandos
+    Se o usuário colocar -v o programa DEVE fazer a verificação
+    dos resultados rodando a funçao de verificação e imprimindo erros se houver.
+    Se -v não for colocado na linha de comando
+    o prograa fará apenas os calculos, imprimindo resultados de tempo e vazao.
+    
+
+// ENTRADA para o algoritmo:
+// A entrada para a função PthPrefixSum será: 
+//   um vetor (GLOBAL) de nTotalElements números inteiros
+//   chamado Vector
+//   (nTotalElements obtido da linha de comando)
+//
+// Para esse teste o vetor NÂO será lido, 
+//   - o vetor será preenchido sequencialmente pela função main
+// Assim como nossa implementação anteriror, 
+//   a inicializaçao do vetor de entrada (em main) deve ser
+//
+//      // initialize InitialVector
+        for( long i = 0; i < nTotalElements; i++ ){
+	        int r = rand();  // Returns a pseudo-random integer
+	                     //    between 0 and RAND_MAX.
+		InitialVector[i] = (r % 1000) - 500;
+	}
+
+// SAIDA do o algoritmo:
+// A saída da função PthPrefixSum será: 
+//   o PROPRIO vetor de entrada, um vetor (GLOBAL) de nTotalElements 
+//   (números long long) 
+//   chamado InputVector
+//   (nTotalElements obtido da linha de comando)
+//
+
+// A função a ser codificada por voce tem o protótipo
+void ParallelPrefixSumPth( volatile TYPE *Vec, 
+                           long nTotalElmts,
+                           int nThreads );
+                           
+// A função a ser codificada por voce tem o protótipo
+void ParallelPrefixSumPth( volatile TYPE *Vec, 
+                           long nTotalElmts, long chunkSize,
+                           int nThreads );
+                           
+// VEJA que deve ser feito a soma de prefixos
+// "in place", (**) 
+//  APENAS usando o pequeno vetor auxiliar PartialSum,    
+// (com APENAS 1 elemento por thread, como mostrado no arquivo .txt 
+//   que descreve a ideia do algoritmo)
+//  voce pode usar mais alguma estrutura auxiliar se necesário
+//    (come eh o caso do vetor auxiliar PartialSum,  mostrado no arquivo .txt 
+//   que descreve a ideia do algoritmo)
+   
+// DEVE ser feita com POOL de threads,
+//  voce DEVE se basear no código dado pelo prof.
+//  para a redução paralela com POOL de threads
+//  ALTERANDO para fazer o prefix sum paralelo com
+//  pthreads e pool de threads
+                    
+// A implementação do POOL de threads DEVE seguir 
+//   as ideias conforme feito para a redução paralela 
+//   com POOL de threads                           
+
+// ATENCAO: 
+//  voce vai implementar sua funçao paralela
+//  ParallelPrefixSumPth no codigo modelo dado pelo prof.
+//  e incluir suas funçoes chamadas pelas SUAS threads
+//  do POOL de threads,
+
+// o programa deve calcular e imprimir 
+//   o tempo e a vazão de calculo da Soma de Prefixos usando
+//   o algoritmo (idéias) descritas
+//   no arquivo: 
+//     ideia-do-algoritmo-paralelo-SomaDePrefixos-Pthreads-V1.0.txt
+//     ou versao mais nova SE FOR colocada uma mais nova
+//     na UFPR VIRTUAL o prof avisará
+
+// OBS: internamente o seu programa deve definir
+//      #define NTIMES 100
+// NTIMES eh o número de vezes que seu programa chamará a funcao
+// soma de prefixos (com o mesmo vetor de entrada)
+// minimizado AQUI os efeitos de cache nas medidas conforme
+// feito para a redução paralela
+
+// Como a função eh chamada NTIMES vezes e a medida de tempo
+// DEVE ser feita apenas 1 vez para todas as NTIMES chamadas,
+// voce deve usar NTIMES para ajustar corretamente o cálculo de VAZAO
+// bem com reportar o tempo POR CHAMADA. 
+
+
+
+// Verificaçao de correção do programa: 
+// ------------------------------------
+// (item incluido na versao 1)
+// o programa main, antes de terminar, deve verificar
+//    se seu algoritmo paralelo gerando corretamente o vetor de saída
+//    essa verificação DEVE ser feita de forma sequencial 
+//    (ao final do main), INCLUINDO-SE O CÓDIGO ABAIXO
+//    esse código roda apenas ao final, e NÃO deve influenciar
+//    na medida de tempo feita para o algoritmo paralelo e
+//    nem deve influenciar no cálculo e resultado de VAZAO reportada
+
+void verifyPrefixSum( 
+  const TYPE *InputVec,       // original (initial) vector
+                              // eh uma COPIA da entrada, que voce deve fazer
+                              // para que seja usada AQUI na verificação
+  volatile TYPE *prefixSumVec,   // prefixSum vector ...
+                                 // ... to be verified for correctness
+  long nTotalElmts )
+{
+    // codigo de verificação (pode ser sequencial)
+}
+
+
+// O código ACIMA DEVE SER chamado ao final de main
+   da seguinte maneira para verificar que seus algoritmos funcionam:
+   
+   verifyPrefixSum( InitVector, Vector, nTotalElements );
+
+
+// rodar o programa 10 vezes obtendo o tempo MÉDIO
+//  colocar TODOS os resultados em planilha
+
+// Colocar na planilha exmplo dada (tabela) os tempos para
+// 1, 2, 3, 4, 5, 6, 7, e 8 threads
+// A última coluna da tabela (planilha) deve calcular 
+//  a aceleração para 1, 2, 3, 4, 5, 6, 7, e 8 threads
+
+COMO MEDIR tempo (e calcular vazao dentro do programa)       <<<=== VERSAO 1.6a
+------------------------------------------------------
+
+   Voce vai fazer um loop chamando a funcao paralela 100 vezes
+   para a mesma matriz de entrada,
+   vai iniciar o chronometro ANTES do loop e parar DEPOIS depois do loop
+   e calcular/ reportar a MEDIA POR CHAMADA 
+    
+   Porem, como essa funcao eh inplace, voce deve manter DUA versoes dos dados
+   de entrada:
+     - voce inicializa os dados no vetor InputValues 
+       (fora do loop, fora de medidas, no inicio do programa)
+     - antes de CADA chamada da funcao paralela, 
+       dentro do loop de 100 vezes,
+       voce DEVE tirar copia (memcopy ou memcpy) do vetor InputValues
+       no vetor Vector, e chamar a funcao parale NESSA COPIA
+     - como o memcopy toma tempo nas medicoes,
+       voce deve ter um chronometro EXTRA, vamos chamar de copyChrono, 
+       e fazer start e stop no copyChrono, a cada memcopy.
+     - depois do loop voce usa a funcao decreaseTime do pacote
+       chrono, para descontar o valor do total de memcopies.   
+
+SOBRE as experiencias      <<<=== VERSAO 1.6a
+---------------------
+
+EXPERIENCIA 0:
+A primeira experiencia que voce deve fazer, eh para descobrir o melhor
+<chunkSize> a ser usado. 
+   PERGUNTA1: Como descobrir?
+   RESPOSTA: 
+      Voce vai testar varias vezes e descobrir qual o melhor <chunkSize> 
+      DICA 1: 
+      teste os seguintes valores:
+        <chunkSize> = maior numero de elementos que cabem no L2
+        <chunkSize> = maior numero de elementos que cabem em 1/2 de L2
+        <chunkSize> = maior numero de elementos que cabem no 1/4 de L2
+        
+         Na versao do prof. o melhor <chunkSize> foi 196608 (1/4 de L2)    <<<=== VERSAO 1.7
+        
+        para OUTRA maquina faria testes para L3 tambem, mas o cluster w NAO TEM L3
+        <chunkSize> = maior numero de elementos que cabem no L3
+        <chunkSize> = maior numero de elementos que cabem em 1/2 de L3
+        <chunkSize> = maior numero de elementos que cabem no 1/4 de L3
+        
+      DICA1: Na versao do prof. o melhor chunkSize foi
+             <chunkSize> = maior numero de elementos que cabem no 1/4 de L2
+      *Medir 6 vezes com cada um dos tamanhos acima
+       e obter a melhor media para cada tamanho
+       (com 8milhoes de elementos e 8 threads)
+       
+   PERGUNTA2: Preciso colocar os dados dessa experiencia na planilha ?
+   RESPOSTA:  essa do melhor <chunkSize> NAO precisa
+              apenas indique no RELATORIO qual foi o melhor tamanho
+              que voce usou.          A versao do prof. o melhor <chunkSize> foi 196608
+              
+EXPERIENCIA (A):   (usando a versao com <chunks>)
+--------------
+    (essa voce vai mostrar na planilha e relatorio e entregar
+     tambem o script SLURM que gera esses dados)
+
+  Rodar cada experiencia (A) 6 vezes e tirar a media (ATENCAO media de 6)   <<<=== VERSAO 1.7
+  Rodar como 16 milhoes e 1,2,3,4,5,6,7,8 threads, com o melhor <chunkSize>
+  colocar TODOS os dados na planilha (vazao ou tempo), 
+      como foi feito na planilha do prof para a reduçao
+  Reportar a media de tempo, e media de vazao em tabelas NA PLANILHA
+  Fazer 2 graficos dessa experiencia na planilha (e replicar no relatorio):
+    - CONFORME foi feito na planilha do prof para a reduçao
+      a) grafico de TEMPO (eixo esquerdo) e aceleracao (eixo direito) 
+         com numero de threads no eixo X
+      b) grafico de VAZAO (eixo esquerdo) e aceleracao (eixo direito) 
+         com numero de threads no eixo X
+
+  Reportar no relatorio que foi sua melhor vazao para 16 milhoes, e o numero de threads nesse caso, e o <chunkSize>
+  
+EXPERIENCIA B:      (usando a versao SEM <chunks>)
+-------------
+    (essa voce vai mostrar na planilha e relatorio e entregar
+     tambem o script SLURM que gera esses dados)
+
+  NESSE CASO voce vai reportar os resultados quando o programa 
+  NAO usa <chunkSize> (ou seja, voce roda essa experiencia 
+  fazendo NA LINHA DE COMANDO com 0 no <chunkSize>, e o programa
+  vai rodar a versao sem pequenos chunks (dados divididos igualmente por thread)
+  
+  O resto eh igual à exp 1:
+  Rodar cada experiencia (B) 5 vezes e tirar a media (ATENCAO media de 5, na experiencia B)   <<<=== VERSAO 1.7
+  Rodar como 8 milhoes e 1,2,3,4,5,6,7,8 threads, com o melhor <chunkSize>             <<<=== VERSAO 1.7 (8 milhoes)
+  colocar TODOS os dados na planilha (vazao ou tempo), 
+      como foi feito na planilha do prof para a reduçao
+  Reportar a media de tempo, e media de vazao em tabelas NA PLANILHA
+  Fazer 2 graficos dessa experiencia na planilha (e replicar no relatorio):
+    - CONFORME foi feito na planilha do prof para a reduçao
+      a) grafico de TEMPO (eixo esquerdo) e aceleracao (eixo direito) 
+         com numero de threads no eixo X
+      b) grafico de VAZAO (eixo esquerdo) e aceleracao (eixo direito) 
+         com numero de threads no eixo X
+
+  Reportar no relatorio que foi sua melhor vazao para 8 milhoes, e o numero de threads nesse caso
+  
+COMPARACAO da EXPERIENCIA A com a EXPERIENCIA B
+-----------------------------------------------
+
+Voce vai colocar, em nova pagina na PANILHA e no relatorio
+CONFORME foi feito na planilha do prof para a reduçao que comparou
+versoes com POOL e sem POOL, 
+aqui voce vai comparar 2 versoes paralelas, com <chunks> e sem <chunks>
+
+Basta colocar uma pequena tabela com os dados de VAZAO
+obtidos para 1,2,3,4,5,6,7,8 threads de CADA versao, uma por linha
+e colocar mais uma linha com a aceleracao de uma versao paralela
+EM RELAÇÂO à outra versao paralela, para cada numero de threads
+ou seja, 
+    aceleracao = vazao(B) / vazao(A)
+
+Reportar qual foi a MELHOR aceleracao obtida na versao A.
+ 
+// Entregar:
+//  um tar.gz contendo:
+//  -  o fonte da sua implementação em C, 
+//  -  os scripts para compilar e rodar as experiências
+//  -  a planilha preenchida com dados conforme descrito acima
+//  -  Um arquivo com seu relatório descrevendo
+//
+//       a) como você implementou (descrever seu algoritmo)
+//
+//       b) a descrição do processador que voce usou, 
+//          seu modelo e caracteristicas importantes para o experimento
+//          COLOQUE EM APENDICE NO RELATORIO A SAIDA DO COMANDO lscpu
+
+//          de preferência adicione também uma figura da 
+//          topologia dos cores do processador obtida pelo programa lstopo
+
+//       c) a descrição dos experimentos e como foram feitas as medidas
+//       
+//       d) a planilha de resultados sumarizando a vazao e aceleração
+//       e) um gráfico (obtido de sua planilha) mostrando:
+//            - no eixo X: o número de threads
+//            - no eixo Y da esquerda: a vazao para cada número de threads
+//                unir os pontos com linhas de uma certa cor C1 de sua preferência
+//            - no eixo Y da direita: a aceleração para cada número de threads
+//                unir os pontos com linhas de uma OUTRA cor C2 de sua preferência 
+
+ENTREGA:
+Em princípio o tar.gz deve ser entregue via upload na ufpr virtual
+O professor deverá incluir (em breve) a opção para entrega do trab1 na ufpr virtual
+
+--------------------------------------
+
